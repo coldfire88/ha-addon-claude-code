@@ -1,0 +1,24 @@
+name: Claude Code
+version: "1.0.1"
+slug: claude_code
+description: Run Claude Code (Anthropic's CLI for Claude) directly in Home Assistant
+url: https://github.com/coldfire88/ha-addon-claude-code
+arch:
+  - amd64
+startup: application
+boot: manual
+init: false
+ingress: true
+ingress_port: 8099
+panel_icon: mdi:console
+panel_title: Claude Code
+panel_admin: true
+homeassistant_api: true
+map:
+  - config:rw
+  - share:rw
+  - media:rw
+options:
+  anthropic_api_key: ""
+schema:
+  anthropic_api_key: "password?"
