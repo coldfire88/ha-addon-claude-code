@@ -1,0 +1,238 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Claude Code</title>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@xterm/xterm@5.5.0/css/xterm.min.css">
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    html, body { height: 100%; background: #1a1a2e; overflow: hidden; }
+    #toolbar {
+      display: flex; align-items: center; gap: 8px;
+      padding: 6px 12px; background: #16213e; border-bottom: 1px solid #0f3460;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      font-size: 13px; color: #a0aec0;
+    }
+    #toolbar .title { color: #e2e8f0; font-weight: 600; }
+    #toolbar .sep { color: #4a5568; }
+    #toolbar button {
+      background: #0f3460; border: 1px solid #1a4a7a; color: #a0aec0;
+      padding: 3px 10px; border-radius: 4px; cursor: pointer; font-size: 12px;
+    }
+    #toolbar button:hover { background: #1a4a7a; color: #e2e8f0; }
+    #toolbar .status { margin-left: auto; font-size: 11px; }
+    #toolbar .status.connected { color: #68d391; }
+    #toolbar .status.disconnected { color: #fc8181; }
+    #terminal { height: calc(100% - 37px); }
+    /* Paste modal */
+    #paste-overlay {
+      display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.6);
+      z-index: 100; align-items: center; justify-content: center;
+    }
+    #paste-overlay.show { display: flex; }
+    #paste-box {
+      background: #1e293b; border: 1px solid #334155; border-radius: 8px;
+      padding: 16px; width: 90%; max-width: 500px;
+    }
+    #paste-box label { display: block; color: #e2e8f0; margin-bottom: 8px; font-size: 14px; font-family: sans-serif; }
+    #paste-box textarea {
+      width: 100%; height: 120px; background: #0f172a; color: #e2e8f0;
+      border: 1px solid #475569; border-radius: 4px; padding: 8px;
+      font-family: monospace; font-size: 14px; resize: vertical;
+    }
+    #paste-box .actions { display: flex; gap: 8px; margin-top: 10px; justify-content: flex-end; }
+    #paste-box .actions button {
+      padding: 6px 16px; border-radius: 4px; border: none; cursor: pointer;
+      font-size: 13px;
+    }
+    #paste-box .actions .send { background: #3b82f6; color: white; }
+    #paste-box .actions .send:hover { background: #2563eb; }
+    #paste-box .actions .cancel { background: #334155; color: #a0aec0; }
+    #paste-box .actions .cancel:hover { background: #475569; }
+  </style>
+</head>
+<body>
+  <div id="toolbar">
+    <span class="title">Claude Code</span>
+    <span class="sep">|</span>
+    <button id="btn-paste" title="Paste text into terminal (Ctrl+Shift+V also works)">Paste</button>
+    <button id="btn-copy" title="Copy selected text">Copy</button>
+    <button id="btn-clear" title="Send Ctrl+L to clear screen">Clear</button>
+    <span id="status" class="status disconnected">disconnected</span>
+  </div>
+  <div id="terminal"></div>
+
+  <div id="paste-overlay">
+    <div id="paste-box">
+      <label>Paste text to send to terminal:</label>
+      <textarea id="paste-input" placeholder="Paste here (Ctrl+V) then click Send..." autofocus></textarea>
+      <div class="actions">
+        <button class="cancel" id="paste-cancel">Cancel</button>
+        <button class="send" id="paste-send">Send</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/@xterm/xterm@5.5.0/lib/xterm.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@xterm/addon-fit@0.10.0/lib/addon-fit.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@xterm/addon-web-links@0.11.0/lib/addon-web-links.min.js"></script>
+  <script>
+    const term = new Terminal({
+      cursorBlink: true,
+      fontSize: 15,
+      fontFamily: "'Cascadia Code', 'Fira Code', 'JetBrains Mono', 'Consolas', monospace",
+      theme: {
+        background: '#1a1a2e',
+        foreground: '#e2e8f0',
+        cursor: '#e2e8f0',
+        selectionBackground: '#3b82f680',
+        black: '#1a1a2e', red: '#fc8181', green: '#68d391', yellow: '#f6e05e',
+        blue: '#63b3ed', magenta: '#b794f6', cyan: '#76e4f7', white: '#e2e8f0',
+        brightBlack: '#4a5568', brightRed: '#feb2b2', brightGreen: '#9ae6b4',
+        brightYellow: '#fefcbf', brightBlue: '#90cdf4', brightMagenta: '#d6bcfa',
+        brightCyan: '#b2f5ea', brightWhite: '#f7fafc'
+      },
+      allowProposedApi: true,
+      scrollback: 10000,
+    });
+
+    const fitAddon = new FitAddon.FitAddon();
+    const webLinksAddon = new WebLinksAddon.WebLinksAddon();
+    term.loadAddon(fitAddon);
+    term.loadAddon(webLinksAddon);
+    term.open(document.getElementById('terminal'));
+    fitAddon.fit();
+
+    const statusEl = document.getElementById('status');
+    let ws;
+
+    function connect() {
+      const proto = location.protocol === 'https:' ? 'wss:' : 'ws:';
+      // Connect WebSocket at same origin — works for both direct and HA ingress access
+      const basePath = location.pathname.replace(/\/+$/, '');
+      ws = new WebSocket(`${proto}//${location.host}${basePath}/ws`);
+      bindWs(ws);
+
+      // Fallback: if ingress-prefixed path fails, try without path
+      const origOnError = ws.onerror;
+      ws.onerror = () => {
+        console.log('WS failed on ingress path, trying root...');
+        ws = new WebSocket(`${proto}//${location.host}/ws`);
+        bindWs(ws);
+      };
+    }
+
+    function bindWs(socket) {
+      socket.onopen = () => {
+        statusEl.textContent = 'connected';
+        statusEl.className = 'status connected';
+        // send initial size
+        socket.send(JSON.stringify({ type: 'resize', cols: term.cols, rows: term.rows }));
+      };
+      socket.onmessage = (e) => term.write(e.data);
+      socket.onclose = () => {
+        statusEl.textContent = 'disconnected';
+        statusEl.className = 'status disconnected';
+        term.write('\r\n\x1b[31m[Disconnected — reconnecting in 3s...]\x1b[0m\r\n');
+        setTimeout(connect, 3000);
+      };
+    }
+
+    // Terminal input → WebSocket
+    term.onData((data) => {
+      if (ws && ws.readyState === WebSocket.OPEN) {
+        ws.send(JSON.stringify({ type: 'input', data }));
+      }
+    });
+
+    // Resize handling
+    term.onResize(({ cols, rows }) => {
+      if (ws && ws.readyState === WebSocket.OPEN) {
+        ws.send(JSON.stringify({ type: 'resize', cols, rows }));
+      }
+    });
+    window.addEventListener('resize', () => fitAddon.fit());
+    new ResizeObserver(() => fitAddon.fit()).observe(document.getElementById('terminal'));
+
+    // Clipboard: copy selected text
+    document.getElementById('btn-copy').addEventListener('click', () => {
+      const sel = term.getSelection();
+      if (sel) {
+        navigator.clipboard.writeText(sel).then(
+          () => { statusEl.textContent = 'copied!'; setTimeout(() => { statusEl.textContent = 'connected'; }, 1500); },
+          () => { /* fallback */ document.getElementById('paste-input').value = sel; showPasteModal(); }
+        );
+      }
+    });
+
+    // Clipboard: Ctrl+Shift+C to copy
+    term.attachCustomKeyEventHandler((ev) => {
+      if (ev.ctrlKey && ev.shiftKey && ev.key === 'C') {
+        const sel = term.getSelection();
+        if (sel) navigator.clipboard.writeText(sel).catch(() => {});
+        return false;
+      }
+      // Ctrl+Shift+V to paste
+      if (ev.ctrlKey && ev.shiftKey && ev.key === 'V') {
+        navigator.clipboard.readText().then((text) => {
+          if (ws && ws.readyState === WebSocket.OPEN) {
+            ws.send(JSON.stringify({ type: 'input', data: text }));
+          }
+        }).catch(() => showPasteModal());
+        return false;
+      }
+      return true;
+    });
+
+    // Paste modal (fallback when clipboard API is blocked by iframe)
+    function showPasteModal() {
+      document.getElementById('paste-overlay').classList.add('show');
+      const input = document.getElementById('paste-input');
+      input.value = '';
+      input.focus();
+    }
+    function hidePasteModal() {
+      document.getElementById('paste-overlay').classList.remove('show');
+      term.focus();
+    }
+
+    document.getElementById('btn-paste').addEventListener('click', showPasteModal);
+    document.getElementById('paste-cancel').addEventListener('click', hidePasteModal);
+    document.getElementById('paste-send').addEventListener('click', () => {
+      const text = document.getElementById('paste-input').value;
+      if (text && ws && ws.readyState === WebSocket.OPEN) {
+        ws.send(JSON.stringify({ type: 'input', data: text }));
+      }
+      hidePasteModal();
+    });
+    document.getElementById('paste-input').addEventListener('keydown', (e) => {
+      if (e.key === 'Enter' && e.ctrlKey) {
+        document.getElementById('paste-send').click();
+      }
+      if (e.key === 'Escape') hidePasteModal();
+    });
+
+    // Clear button
+    document.getElementById('btn-clear').addEventListener('click', () => {
+      if (ws && ws.readyState === WebSocket.OPEN) {
+        ws.send(JSON.stringify({ type: 'input', data: '\x0c' })); // Ctrl+L
+      }
+      term.focus();
+    });
+
+    // Right-click paste
+    term.element.addEventListener('contextmenu', (e) => {
+      e.preventDefault();
+      navigator.clipboard.readText().then((text) => {
+        if (text && ws && ws.readyState === WebSocket.OPEN) {
+          ws.send(JSON.stringify({ type: 'input', data: text }));
+        }
+      }).catch(() => showPasteModal());
+    });
+
+    connect();
+    term.focus();
+  </script>
+</body>
+</html>

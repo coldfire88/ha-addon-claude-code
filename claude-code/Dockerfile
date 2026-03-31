@@ -9,6 +9,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     openssh-client \
     build-essential \
     python3 \
+    tmux \
     && rm -rf /var/lib/apt/lists/*
 
 # Install Node.js 20 via NodeSource
@@ -18,12 +19,12 @@ RUN curl -fsSL https://deb.nodesource.com/setup_20.x -o /tmp/nodesource.sh \
     && rm -f /tmp/nodesource.sh \
     && rm -rf /var/lib/apt/lists/*
 
-# Install ttyd from GitHub releases
-RUN curl -fsSL https://github.com/tsl0922/ttyd/releases/download/1.7.7/ttyd.x86_64 -o /usr/local/bin/ttyd \
-    && chmod +x /usr/local/bin/ttyd
-
 # Install Claude Code globally
 RUN npm install -g @anthropic-ai/claude-code
+
+# Build the terminal server
+COPY terminal/ /opt/terminal/
+RUN cd /opt/terminal && npm install --production
 
 # Create persistent data directory
 RUN mkdir -p /data

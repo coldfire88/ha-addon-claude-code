@@ -11,17 +11,18 @@ if [ -f /data/options.json ]; then
     fi
 fi
 
-# Set workspace to HA config directory
-WORKSPACE="/config"
-
-# Persist Claude Code auth across add-on restarts
 export HOME="/data"
 
-echo "Claude Code - Home Assistant"
-echo "Starting web terminal on port 8099..."
+# tmux config
+cat > /data/.tmux.conf << 'TMUXCONF'
+set -g default-terminal "xterm-256color"
+set -g mouse on
+set -s escape-time 0
+set -g history-limit 50000
+TMUXCONF
 
-# Launch ttyd serving a bash shell
-exec ttyd \
-    --port 8099 \
-    --writable \
-    bash -c "cd ${WORKSPACE} && echo 'Claude Code - Home Assistant' && echo '---' && echo 'Run: claude login  (if first time)' && echo '' && exec bash"
+echo "Claude Code - Home Assistant"
+echo "Starting xterm.js terminal on port 8099..."
+
+# Launch the Node.js terminal server
+exec node /opt/terminal/server.js
