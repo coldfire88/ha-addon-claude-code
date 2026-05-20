@@ -13,6 +13,10 @@ fi
 
 export HOME="/data"
 
+# Pin the model to Claude Opus 4.7. Auth is via `claude login` (Max
+# subscription) — no API key needed for this to take effect.
+export ANTHROPIC_MODEL="claude-opus-4-7"
+
 # tmux config
 cat > /data/.tmux.conf << 'TMUXCONF'
 set -g default-terminal "xterm-256color"
