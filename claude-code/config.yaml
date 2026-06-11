@@ -1,5 +1,5 @@
 name: Claude Code
-version: "2.1.0"
+version: "2.2.0"
 slug: claude_code
 description: Run Claude Code (Anthropic's CLI for Claude) directly in Home Assistant
 url: https://github.com/anthropics/claude-code

@@ -25,6 +25,41 @@ set -s escape-time 0
 set -g history-limit 50000
 TMUXCONF
 
+# Permission policy ("auto-safe" mode): auto-allow reads, edits, git and common
+# safe home-ops commands so Claude stops prompting on every step; still PROMPT
+# before clearly destructive shell ops (rm, mv, dd, chown, reboot, git reset, …).
+# Managed by the add-on — rewritten on every start so the policy is declarative.
+mkdir -p /data/.claude
+cat > /data/.claude/settings.json << 'SETTINGS'
+{
+  "permissions": {
+    "defaultMode": "default",
+    "allow": [
+      "Read", "Glob", "Grep", "LS", "TodoWrite", "WebFetch", "WebSearch", "Task",
+      "Edit", "Write", "MultiEdit", "NotebookEdit",
+      "Bash(ls:*)", "Bash(cat:*)", "Bash(head:*)", "Bash(tail:*)", "Bash(grep:*)",
+      "Bash(rg:*)", "Bash(find:*)", "Bash(echo:*)", "Bash(pwd)", "Bash(cd:*)",
+      "Bash(which:*)", "Bash(env)", "Bash(test:*)", "Bash(true)", "Bash(date:*)",
+      "Bash(sort:*)", "Bash(uniq:*)", "Bash(wc:*)", "Bash(sed:*)", "Bash(awk:*)",
+      "Bash(mkdir:*)", "Bash(touch:*)", "Bash(cp:*)", "Bash(diff:*)", "Bash(ln:*)",
+      "Bash(git status:*)", "Bash(git diff:*)", "Bash(git log:*)", "Bash(git show:*)",
+      "Bash(git add:*)", "Bash(git commit:*)", "Bash(git pull:*)", "Bash(git push:*)",
+      "Bash(git fetch:*)", "Bash(git branch:*)", "Bash(git checkout:*)",
+      "Bash(git stash:*)", "Bash(git restore:*)", "Bash(git remote:*)",
+      "Bash(python3:*)", "Bash(pip3:*)", "Bash(node:*)", "Bash(npm:*)", "Bash(npx:*)",
+      "Bash(curl:*)", "Bash(wget:*)", "Bash(jq:*)", "Bash(tmux:*)",
+      "Bash(ha:*)", "Bash(bashio:*)", "Bash(ping:*)"
+    ],
+    "ask": [
+      "Bash(rm:*)", "Bash(rmdir:*)", "Bash(mv:*)", "Bash(dd:*)", "Bash(mkfs:*)",
+      "Bash(chmod:*)", "Bash(chown:*)", "Bash(kill:*)", "Bash(pkill:*)",
+      "Bash(reboot:*)", "Bash(shutdown:*)", "Bash(git reset:*)", "Bash(git clean:*)"
+    ],
+    "deny": []
+  }
+}
+SETTINGS
+
 echo "Claude Code - Home Assistant"
 echo "Starting xterm.js terminal on port 8099..."
 
