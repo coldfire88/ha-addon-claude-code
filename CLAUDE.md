@@ -2,6 +2,20 @@
 
 > **Shared rules**: See `/mnt/d/ClaudeProjects/CLAUDE_BASE.md` for permissions, working style, git rules, and all standard Claude Code practices.
 
+**Feedbackify prefix**: `HAADDON`
+
+<!-- FBIFY-REQUESTS -->
+> **Requests (the task manager)** — work asked for on this project lives at
+> <https://feedbackify.somodi.ch/requests>. Mark and other contributors file them there;
+> they show up here as a session-start nudge.
+>
+> At session start: `python3 /mnt/d/ClaudeProjects/scripts/feedbackify-requests.py list HAADDON`
+> (exit `0` = open requests exist, `1` = none, `2` = error). Then follow
+> **`/mnt/d/ClaudeProjects/CLAUDE.md` § "Portfolio-wide rule — Feedbackify open-requests pickup"**
+> for the full flow: `start`/`resume` when you pick one up, `block --escalate` to park it on a
+> question instead of stalling, `deliver --doc … --notes …` when it's done.
+> **Never set `closed`** — acceptance is Zoli's or the requester's call in the portal.
+
 <!-- INFRA:START (generated from INFRA.md — edit there, then re-sync from the hub) -->
 ## Infrastructure
 
