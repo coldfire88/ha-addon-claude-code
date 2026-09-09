@@ -3,10 +3,8 @@
 
 _Generated from the **still-active** (non-archived) answered questions in the `PORTFOLIO-AUDIT` Feedbackify project. Each item cites the question code so you can trace it back._
 
-- [ ] <!-- id:c5202930-19bb-4921-a5da-60a57d29aba2 --> _[audit Q-151]_ Keep per-tab ephemeral tmux sessions (current behaviour). Don't build persistence across WebSocket reconnections.
 
 - [ ] <!-- id:1285af97-c8bc-4d58-baec-04ad67f9a83b --> _[audit Q-151]_ Keep per-tab ephemeral tmux sessions (current behaviour). Don't build persistence across WebSocket reconnections.
-- [ ] <!-- id:57836911-7974-4752-89e2-af030ab34054 --> _[audit Q-151]_ Keep per-tab ephemeral tmux sessions (current behaviour). Don't build persistence across WebSocket reconnections.
 
 ## Docs compliance — branding guide + compendium missing (added 2026-07-27)
 
